@@ -3,13 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Node-Based Scratch Clone</title>
+    <title>Node-Based Scratch Clone</title>
     <style>
         body {
             display: flex;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
+        }
+        #sidebar {
+            width: 20%;
+            height: 100vh;
+            background: #ddd;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .node-template {
+            padding: 10px;
+            background: white;
+            border: 1px solid black;
+            cursor: grab;
+            text-align: center;
         }
         #editor {
             width: 60%;
@@ -19,7 +35,7 @@
             background-color: #f4f4f4;
         }
         #stage {
-            width: 40%;
+            width: 20%;
             height: 100vh;
             background-color: lightgray;
             display: flex;
@@ -63,6 +79,11 @@
     </style>
 </head>
 <body>
+    <div id="sidebar">
+        <div class="node-template" draggable="true" data-type="Move">Move</div>
+        <div class="node-template" draggable="true" data-type="Rotate">Rotate</div>
+        <div class="node-template" draggable="true" data-type="Color">Color</div>
+    </div>
     <div id="editor"></div>
     <div id="stage">
         <div id="sprite"></div>
@@ -193,12 +214,22 @@
             sprite.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
         }
 
-        // Create default nodes
-        new Node("Move", 50, 50);
-        new Node("Rotate", 50, 150);
-        new Node("Color", 50, 250);
+        // Drag & Drop Logic
+        document.querySelectorAll(".node-template").forEach(node => {
+            node.ondragstart = (e) => {
+                e.dataTransfer.setData("type", node.dataset.type);
+            };
+        });
 
-        // Run button
+        document.getElementById("editor").ondrop = (e) => {
+            e.preventDefault();
+            let type = e.dataTransfer.getData("type");
+            new Node(type, e.clientX - 60, e.clientY - 20);
+        };
+
+        document.getElementById("editor").ondragover = (e) => e.preventDefault();
+
+        // Run Button
         let runButton = document.createElement("button");
         runButton.innerText = "Run";
         runButton.style.position = "absolute";
