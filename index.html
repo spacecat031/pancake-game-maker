@@ -45,15 +45,16 @@
             box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
         }
         .connector {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background: blue;
             border-radius: 50%;
             position: absolute;
-            right: -5px;
+            right: -6px;
             top: 50%;
             transform: translateY(-50%);
             cursor: pointer;
+            border: 2px solid white;
         }
         #stage {
             width: 20%;
@@ -143,6 +144,7 @@
             if (!draggingNode) return;
             draggingNode.style.left = event.clientX + "px";
             draggingNode.style.top = event.clientY + "px";
+            updateAllConnections();
         }
 
         function startConnection(node) {
@@ -157,6 +159,7 @@
         function createConnection(node1, node2) {
             const svg = document.getElementById("connections");
             const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("data-nodes", `${node1.dataset.id}-${node2.dataset.id}`);
             updatePath(path, node1, node2);
             svg.appendChild(path);
         }
@@ -167,6 +170,17 @@
             const x2 = node2.offsetLeft;
             const y2 = node2.offsetTop + node2.offsetHeight / 2;
             path.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
+        }
+
+        function updateAllConnections() {
+            document.querySelectorAll("path").forEach(path => {
+                const [id1, id2] = path.getAttribute("data-nodes").split("-");
+                const node1 = document.querySelector(`.node[data-id="${id1}"]`);
+                const node2 = document.querySelector(`.node[data-id="${id2}"]`);
+                if (node1 && node2) {
+                    updatePath(path, node1, node2);
+                }
+            });
         }
     </script>
 </body>
