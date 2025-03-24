@@ -33,6 +33,7 @@
             border-right: 2px solid black;
             position: relative;
             background: #f4f4f4;
+            overflow: hidden;
         }
         .node {
             position: absolute;
@@ -104,6 +105,7 @@
         let nodeId = 0;
         let draggingNode = null;
         let connectingNode = null;
+        let offsetX = 0, offsetY = 0;
 
         function startDrag(event, type) {
             event.dataTransfer.setData("nodeType", type);
@@ -114,11 +116,14 @@
             const type = event.dataTransfer.getData("nodeType");
             if (!type) return;
 
+            const editor = document.getElementById("editor");
+            const editorRect = editor.getBoundingClientRect();
+
             const node = document.createElement("div");
             node.className = "node";
             node.innerText = type + " Node";
-            node.style.left = event.clientX + "px";
-            node.style.top = event.clientY + "px";
+            node.style.left = (event.clientX - editorRect.left) + "px";
+            node.style.top = (event.clientY - editorRect.top) + "px";
             node.setAttribute("data-id", nodeId++);
 
             const connector = document.createElement("div");
@@ -127,12 +132,18 @@
 
             node.appendChild(connector);
             node.onmousedown = (e) => dragNode(e, node);
-            document.getElementById("editor").appendChild(node);
+            editor.appendChild(node);
         }
 
         function dragNode(event, node) {
             event.preventDefault();
             draggingNode = node;
+
+            const editor = document.getElementById("editor");
+            const editorRect = editor.getBoundingClientRect();
+            offsetX = event.clientX - node.offsetLeft - editorRect.left;
+            offsetY = event.clientY - node.offsetTop - editorRect.top;
+
             document.onmousemove = moveNode;
             document.onmouseup = () => {
                 draggingNode = null;
@@ -142,8 +153,19 @@
 
         function moveNode(event) {
             if (!draggingNode) return;
-            draggingNode.style.left = event.clientX + "px";
-            draggingNode.style.top = event.clientY + "px";
+            
+            const editor = document.getElementById("editor");
+            const editorRect = editor.getBoundingClientRect();
+            
+            let newX = event.clientX - editorRect.left - offsetX;
+            let newY = event.clientY - editorRect.top - offsetY;
+
+            newX = Math.max(0, Math.min(editor.clientWidth - draggingNode.offsetWidth, newX));
+            newY = Math.max(0, Math.min(editor.clientHeight - draggingNode.offsetHeight, newY));
+
+            draggingNode.style.left = newX + "px";
+            draggingNode.style.top = newY + "px";
+
             updateAllConnections();
         }
 
