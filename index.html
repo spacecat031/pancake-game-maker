@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node-Based Scratch Clone</title>
+    <script type="module">
+        import { Editor } from "https://unpkg.com/@baklavajs/core@2.0.0/dist/index.js";
+        import { SvgPlugin } from "https://unpkg.com/@baklavajs/renderers@2.0.0/dist/index.js";
+
+        window.onload = function() {
+            const editor = new Editor();
+            const viewPlugin = new SvgPlugin();
+            editor.use(viewPlugin);
+            document.getElementById("editor").appendChild(viewPlugin.$el);
+
+            class MoveNode extends editor.Node {
+                constructor() {
+                    super("Move Sprite");
+                    this.addInputInterface("Pixels", "Number", 10);
+                    this.addOutputInterface("Output");
+                }
+                calculate() {
+                    let value = this.getInterface("Pixels").value;
+                    moveSprite(value);
+                }
+            }
+
+            class RotateNode extends editor.Node {
+                constructor() {
+                    super("Rotate Sprite");
+                    this.addInputInterface("Angle", "Number", 90);
+                    this.addOutputInterface("Output");
+                }
+                calculate() {
+                    let angle = this.getInterface("Angle").value;
+                    turnSprite(angle);
+                }
+            }
+
+            class ColorNode extends editor.Node {
+                constructor() {
+                    super("Change Color");
+                    this.addOutputInterface("Output");
+                }
+                calculate() {
+                    changeColor();
+                }
+            }
+
+            editor.registerNodeType(MoveNode);
+            editor.registerNodeType(RotateNode);
+            editor.registerNodeType(ColorNode);
+        };
+
+        function moveSprite(value) {
+            var sprite = document.getElementById("sprite");
+            var left = parseInt(window.getComputedStyle(sprite).left) || 0;
+            sprite.style.left = (left + value) + "px";
+        }
+
+        function turnSprite(angle) {
+            var sprite = document.getElementById("sprite");
+            var currentRotation = parseFloat(sprite.style.transform.replace("rotate(", "").replace("deg)", "")) || 0;
+            sprite.style.transform = `rotate(${currentRotation + angle}deg)`;
+        }
+
+        function changeColor() {
+            var sprite = document.getElementById("sprite");
+            sprite.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+        }
+    </script>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        #editor {
+            width:
