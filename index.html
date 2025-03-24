@@ -13,26 +13,47 @@
         }
         #sidebar {
             width: 20%;
-            height: 100vh;
-            background: #ddd;
+            background: #333;
+            color: white;
             padding: 10px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        .node-template {
+        .node-button {
+            background: #444;
             padding: 10px;
-            background: white;
-            border: 1px solid black;
-            cursor: grab;
+            border-radius: 5px;
             text-align: center;
+            cursor: grab;
         }
         #editor {
             width: 60%;
             height: 100vh;
             border-right: 2px solid black;
             position: relative;
-            background-color: #f4f4f4;
+            background: #f4f4f4;
+        }
+        .node {
+            position: absolute;
+            width: 120px;
+            background: white;
+            border: 1px solid #aaa;
+            padding: 10px;
+            cursor: grab;
+            border-radius: 5px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .connector {
+            width: 10px;
+            height: 10px;
+            background: blue;
+            border-radius: 50%;
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
         }
         #stage {
             width: 20%;
@@ -52,191 +73,101 @@
             top: 50%;
             transform: translate(-50%, -50%);
         }
-        .node {
+        svg {
             position: absolute;
-            width: 120px;
-            padding: 10px;
-            background: white;
-            border: 1px solid black;
-            cursor: grab;
-            user-select: none;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
         }
-        .connector {
-            width: 10px;
-            height: 10px;
-            background: black;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 5px;
-            cursor: pointer;
-        }
-        .line {
-            position: absolute;
-            width: 2px;
-            background: black;
-            transform-origin: 0 0;
+        path {
+            stroke: black;
+            stroke-width: 2px;
+            fill: none;
         }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <div class="node-template" draggable="true" data-type="Move">Move</div>
-        <div class="node-template" draggable="true" data-type="Rotate">Rotate</div>
-        <div class="node-template" draggable="true" data-type="Color">Color</div>
+        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Move')">Move Node</div>
+        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Rotate')">Rotate Node</div>
+        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Color')">Color Node</div>
     </div>
-    <div id="editor"></div>
+    <div id="editor" ondragover="event.preventDefault()" ondrop="dropNode(event)">
+        <svg id="connections"></svg>
+    </div>
     <div id="stage">
         <div id="sprite"></div>
     </div>
 
     <script>
-        let nodes = [];
-        let connections = [];
+        let nodeId = 0;
+        let draggingNode = null;
+        let connectingNode = null;
 
-        class Node {
-            constructor(type, x, y) {
-                this.id = nodes.length;
-                this.type = type;
-                this.x = x;
-                this.y = y;
-                this.value = 10;
-
-                this.element = document.createElement("div");
-                this.element.classList.add("node");
-                this.element.style.left = x + "px";
-                this.element.style.top = y + "px";
-                this.element.innerHTML = `${type}<br><input type="number" value="${this.value}" class="value-input">
-                <div class="connector" data-id="${this.id}"></div>`;
-                
-                document.getElementById("editor").appendChild(this.element);
-                
-                this.element.onmousedown = (e) => this.startDrag(e);
-                this.element.querySelector(".value-input").oninput = (e) => this.updateValue(e);
-                this.element.querySelector(".connector").onclick = (e) => startConnection(e, this);
-                
-                nodes.push(this);
-            }
-
-            startDrag(e) {
-                let offsetX = e.clientX - this.element.offsetLeft;
-                let offsetY = e.clientY - this.element.offsetTop;
-                
-                const onMouseMove = (e) => {
-                    this.x = e.clientX - offsetX;
-                    this.y = e.clientY - offsetY;
-                    this.element.style.left = this.x + "px";
-                    this.element.style.top = this.y + "px";
-                    updateLines();
-                };
-                
-                const onMouseUp = () => {
-                    document.removeEventListener("mousemove", onMouseMove);
-                    document.removeEventListener("mouseup", onMouseUp);
-                };
-
-                document.addEventListener("mousemove", onMouseMove);
-                document.addEventListener("mouseup", onMouseUp);
-            }
-
-            updateValue(e) {
-                this.value = parseInt(e.target.value);
-            }
+        function startDrag(event, type) {
+            event.dataTransfer.setData("nodeType", type);
         }
 
-        function startConnection(event, node) {
-            let fromNode = node;
-            let toNode = null;
+        function dropNode(event) {
+            event.preventDefault();
+            const type = event.dataTransfer.getData("nodeType");
+            if (!type) return;
 
-            document.onmousemove = (e) => {
-                let line = document.createElement("div");
-                line.classList.add("line");
-                document.getElementById("editor").appendChild(line);
-                updateLine(line, fromNode, e.clientX, e.clientY);
+            const node = document.createElement("div");
+            node.className = "node";
+            node.innerText = type + " Node";
+            node.style.left = event.clientX + "px";
+            node.style.top = event.clientY + "px";
+            node.setAttribute("data-id", nodeId++);
 
-                document.onmouseup = (e) => {
-                    let targetNode = nodes.find(n => n.element.contains(e.target));
-                    if (targetNode && targetNode !== fromNode) {
-                        toNode = targetNode;
-                        connections.push({ fromNode, toNode, line });
-                    } else {
-                        line.remove();
-                    }
-                    document.onmousemove = null;
-                    document.onmouseup = null;
-                };
+            const connector = document.createElement("div");
+            connector.className = "connector";
+            connector.onclick = () => startConnection(node);
+
+            node.appendChild(connector);
+            node.onmousedown = (e) => dragNode(e, node);
+            document.getElementById("editor").appendChild(node);
+        }
+
+        function dragNode(event, node) {
+            event.preventDefault();
+            draggingNode = node;
+            document.onmousemove = moveNode;
+            document.onmouseup = () => {
+                draggingNode = null;
+                document.onmousemove = null;
             };
         }
 
-        function updateLine(line, fromNode, x, y) {
-            let rect = fromNode.element.getBoundingClientRect();
-            let startX = rect.left + rect.width;
-            let startY = rect.top + rect.height / 2;
-            let dx = x - startX;
-            let dy = y - startY;
-            let length = Math.sqrt(dx * dx + dy * dy);
-            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-            line.style.left = startX + "px";
-            line.style.top = startY + "px";
-            line.style.width = length + "px";
-            line.style.transform = `rotate(${angle}deg)`;
+        function moveNode(event) {
+            if (!draggingNode) return;
+            draggingNode.style.left = event.clientX + "px";
+            draggingNode.style.top = event.clientY + "px";
         }
 
-        function updateLines() {
-            connections.forEach(({ fromNode, toNode, line }) => {
-                let rect = toNode.element.getBoundingClientRect();
-                updateLine(line, fromNode, rect.left, rect.top + rect.height / 2);
-            });
+        function startConnection(node) {
+            if (!connectingNode) {
+                connectingNode = node;
+            } else {
+                createConnection(connectingNode, node);
+                connectingNode = null;
+            }
         }
 
-        function runProgram() {
-            connections.forEach(({ fromNode, toNode }) => {
-                if (fromNode.type === "Move") moveSprite(fromNode.value);
-                if (fromNode.type === "Rotate") rotateSprite(fromNode.value);
-                if (fromNode.type === "Color") changeColor();
-            });
+        function createConnection(node1, node2) {
+            const svg = document.getElementById("connections");
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            updatePath(path, node1, node2);
+            svg.appendChild(path);
         }
 
-        function moveSprite(value) {
-            let sprite = document.getElementById("sprite");
-            let left = parseInt(window.getComputedStyle(sprite).left) || 0;
-            sprite.style.left = (left + value) + "px";
+        function updatePath(path, node1, node2) {
+            const x1 = node1.offsetLeft + node1.offsetWidth;
+            const y1 = node1.offsetTop + node1.offsetHeight / 2;
+            const x2 = node2.offsetLeft;
+            const y2 = node2.offsetTop + node2.offsetHeight / 2;
+            path.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
         }
-
-        function rotateSprite(angle) {
-            let sprite = document.getElementById("sprite");
-            let currentRotation = parseFloat(sprite.style.transform.replace("rotate(", "").replace("deg)", "")) || 0;
-            sprite.style.transform = `rotate(${currentRotation + angle}deg)`;
-        }
-
-        function changeColor() {
-            let sprite = document.getElementById("sprite");
-            sprite.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
-        }
-
-        // Drag & Drop Logic
-        document.querySelectorAll(".node-template").forEach(node => {
-            node.ondragstart = (e) => {
-                e.dataTransfer.setData("type", node.dataset.type);
-            };
-        });
-
-        document.getElementById("editor").ondrop = (e) => {
-            e.preventDefault();
-            let type = e.dataTransfer.getData("type");
-            new Node(type, e.clientX - 60, e.clientY - 20);
-        };
-
-        document.getElementById("editor").ondragover = (e) => e.preventDefault();
-
-        // Run Button
-        let runButton = document.createElement("button");
-        runButton.innerText = "Run";
-        runButton.style.position = "absolute";
-        runButton.style.bottom = "10px";
-        runButton.style.left = "50px";
-        runButton.onclick = runProgram;
-        document.getElementById("editor").appendChild(runButton);
     </script>
 </body>
 </html>
