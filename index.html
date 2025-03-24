@@ -4,54 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Node-Based Scratch Clone</title>
-    <script type="module">
-        import { Editor } from "https://unpkg.com/@baklavajs/core@2.0.0/dist/index.js";
-        import { SvgPlugin } from "https://unpkg.com/@baklavajs/renderers@2.0.0/dist/index.js";
+    <script src="https://cdn.jsdelivr.net/npm/@baklavajs/core@latest/dist/baklavajs-core.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@baklavajs/renderers@latest/dist/baklavajs-renderers.umd.js"></script>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        #editor {
+            width: 60%;
+            height: 100vh;
+            border-right: 2px solid black;
+        }
+        #stage {
+            width: 40%;
+            height: 100vh;
+            background-color: lightgray;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        #sprite {
+            width: 50px;
+            height: 50px;
+            background-color: red;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="editor"></div>
+    <div id="stage">
+        <div id="sprite"></div>
+    </div>
+    
+    <script>
+        const editor = new BaklavaJS.Core.Editor();
+        const viewPlugin = new BaklavaJS.Renderer.SvgRenderer();
+        editor.use(viewPlugin);
+        document.getElementById("editor").appendChild(viewPlugin.$el);
 
-        window.onload = function() {
-            const editor = new Editor();
-            const viewPlugin = new SvgPlugin();
-            editor.use(viewPlugin);
-            document.getElementById("editor").appendChild(viewPlugin.$el);
-
-            class MoveNode extends editor.Node {
-                constructor() {
-                    super("Move Sprite");
-                    this.addInputInterface("Pixels", "Number", 10);
-                    this.addOutputInterface("Output");
-                }
-                calculate() {
-                    let value = this.getInterface("Pixels").value;
-                    moveSprite(value);
-                }
+        class MoveNode extends BaklavaJS.Core.Node {
+            constructor() {
+                super("Move Sprite");
+                this.addInputInterface("Pixels", "Number", 10);
+                this.addOutputInterface("Output");
             }
-
-            class RotateNode extends editor.Node {
-                constructor() {
-                    super("Rotate Sprite");
-                    this.addInputInterface("Angle", "Number", 90);
-                    this.addOutputInterface("Output");
-                }
-                calculate() {
-                    let angle = this.getInterface("Angle").value;
-                    turnSprite(angle);
-                }
+            calculate() {
+                let value = this.getInterface("Pixels").value;
+                moveSprite(value);
             }
+        }
 
-            class ColorNode extends editor.Node {
-                constructor() {
-                    super("Change Color");
-                    this.addOutputInterface("Output");
-                }
-                calculate() {
-                    changeColor();
-                }
+        class RotateNode extends BaklavaJS.Core.Node {
+            constructor() {
+                super("Rotate Sprite");
+                this.addInputInterface("Angle", "Number", 90);
+                this.addOutputInterface("Output");
             }
+            calculate() {
+                let angle = this.getInterface("Angle").value;
+                turnSprite(angle);
+            }
+        }
 
-            editor.registerNodeType(MoveNode);
-            editor.registerNodeType(RotateNode);
-            editor.registerNodeType(ColorNode);
-        };
+        class ColorNode extends BaklavaJS.Core.Node {
+            constructor() {
+                super("Change Color");
+                this.addOutputInterface("Output");
+            }
+            calculate() {
+                changeColor();
+            }
+        }
+
+        editor.registerNodeType(MoveNode);
+        editor.registerNodeType(RotateNode);
+        editor.registerNodeType(ColorNode);
 
         function moveSprite(value) {
             var sprite = document.getElementById("sprite");
@@ -70,11 +104,5 @@
             sprite.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
         }
     </script>
-    <style>
-        body {
-            display: flex;
-            height: 100vh;
-            margin: 0;
-        }
-        #editor {
-            width:
+</body>
+</html>
