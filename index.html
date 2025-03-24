@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Node-Based Scratch Clone</title>
-    <script src="https://cdn.jsdelivr.net/npm/@baklavajs/core@latest/dist/baklavajs-core.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@baklavajs/renderers@latest/dist/baklavajs-renderers.umd.js"></script>
+    <title>Custom Node-Based Scratch Clone</title>
     <style>
         body {
             display: flex;
             height: 100vh;
             margin: 0;
+            font-family: Arial, sans-serif;
         }
         #editor {
             width: 60%;
             height: 100vh;
             border-right: 2px solid black;
+            position: relative;
+            background-color: #f4f4f4;
         }
         #stage {
             width: 40%;
@@ -35,6 +36,30 @@
             top: 50%;
             transform: translate(-50%, -50%);
         }
+        .node {
+            position: absolute;
+            width: 120px;
+            padding: 10px;
+            background: white;
+            border: 1px solid black;
+            cursor: grab;
+            user-select: none;
+        }
+        .connector {
+            width: 10px;
+            height: 10px;
+            background: black;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        .line {
+            position: absolute;
+            width: 2px;
+            background: black;
+            transform-origin: 0 0;
+        }
     </style>
 </head>
 <body>
@@ -42,67 +67,145 @@
     <div id="stage">
         <div id="sprite"></div>
     </div>
-    
+
     <script>
-        const editor = new BaklavaJS.Core.Editor();
-        const viewPlugin = new BaklavaJS.Renderer.SvgRenderer();
-        editor.use(viewPlugin);
-        document.getElementById("editor").appendChild(viewPlugin.$el);
+        let nodes = [];
+        let connections = [];
 
-        class MoveNode extends BaklavaJS.Core.Node {
-            constructor() {
-                super("Move Sprite");
-                this.addInputInterface("Pixels", "Number", 10);
-                this.addOutputInterface("Output");
+        class Node {
+            constructor(type, x, y) {
+                this.id = nodes.length;
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.value = 10;
+
+                this.element = document.createElement("div");
+                this.element.classList.add("node");
+                this.element.style.left = x + "px";
+                this.element.style.top = y + "px";
+                this.element.innerHTML = `${type}<br><input type="number" value="${this.value}" class="value-input">
+                <div class="connector" data-id="${this.id}"></div>`;
+                
+                document.getElementById("editor").appendChild(this.element);
+                
+                this.element.onmousedown = (e) => this.startDrag(e);
+                this.element.querySelector(".value-input").oninput = (e) => this.updateValue(e);
+                this.element.querySelector(".connector").onclick = (e) => startConnection(e, this);
+                
+                nodes.push(this);
             }
-            calculate() {
-                let value = this.getInterface("Pixels").value;
-                moveSprite(value);
+
+            startDrag(e) {
+                let offsetX = e.clientX - this.element.offsetLeft;
+                let offsetY = e.clientY - this.element.offsetTop;
+                
+                const onMouseMove = (e) => {
+                    this.x = e.clientX - offsetX;
+                    this.y = e.clientY - offsetY;
+                    this.element.style.left = this.x + "px";
+                    this.element.style.top = this.y + "px";
+                    updateLines();
+                };
+                
+                const onMouseUp = () => {
+                    document.removeEventListener("mousemove", onMouseMove);
+                    document.removeEventListener("mouseup", onMouseUp);
+                };
+
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup", onMouseUp);
+            }
+
+            updateValue(e) {
+                this.value = parseInt(e.target.value);
             }
         }
 
-        class RotateNode extends BaklavaJS.Core.Node {
-            constructor() {
-                super("Rotate Sprite");
-                this.addInputInterface("Angle", "Number", 90);
-                this.addOutputInterface("Output");
-            }
-            calculate() {
-                let angle = this.getInterface("Angle").value;
-                turnSprite(angle);
-            }
+        function startConnection(event, node) {
+            let fromNode = node;
+            let toNode = null;
+
+            document.onmousemove = (e) => {
+                let line = document.createElement("div");
+                line.classList.add("line");
+                document.getElementById("editor").appendChild(line);
+                updateLine(line, fromNode, e.clientX, e.clientY);
+
+                document.onmouseup = (e) => {
+                    let targetNode = nodes.find(n => n.element.contains(e.target));
+                    if (targetNode && targetNode !== fromNode) {
+                        toNode = targetNode;
+                        connections.push({ fromNode, toNode, line });
+                    } else {
+                        line.remove();
+                    }
+                    document.onmousemove = null;
+                    document.onmouseup = null;
+                };
+            };
         }
 
-        class ColorNode extends BaklavaJS.Core.Node {
-            constructor() {
-                super("Change Color");
-                this.addOutputInterface("Output");
-            }
-            calculate() {
-                changeColor();
-            }
+        function updateLine(line, fromNode, x, y) {
+            let rect = fromNode.element.getBoundingClientRect();
+            let startX = rect.left + rect.width;
+            let startY = rect.top + rect.height / 2;
+            let dx = x - startX;
+            let dy = y - startY;
+            let length = Math.sqrt(dx * dx + dy * dy);
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+            line.style.left = startX + "px";
+            line.style.top = startY + "px";
+            line.style.width = length + "px";
+            line.style.transform = `rotate(${angle}deg)`;
         }
 
-        editor.registerNodeType(MoveNode);
-        editor.registerNodeType(RotateNode);
-        editor.registerNodeType(ColorNode);
+        function updateLines() {
+            connections.forEach(({ fromNode, toNode, line }) => {
+                let rect = toNode.element.getBoundingClientRect();
+                updateLine(line, fromNode, rect.left, rect.top + rect.height / 2);
+            });
+        }
+
+        function runProgram() {
+            connections.forEach(({ fromNode, toNode }) => {
+                if (fromNode.type === "Move") moveSprite(fromNode.value);
+                if (fromNode.type === "Rotate") rotateSprite(fromNode.value);
+                if (fromNode.type === "Color") changeColor();
+            });
+        }
 
         function moveSprite(value) {
-            var sprite = document.getElementById("sprite");
-            var left = parseInt(window.getComputedStyle(sprite).left) || 0;
+            let sprite = document.getElementById("sprite");
+            let left = parseInt(window.getComputedStyle(sprite).left) || 0;
             sprite.style.left = (left + value) + "px";
         }
 
-        function turnSprite(angle) {
-            var sprite = document.getElementById("sprite");
-            var currentRotation = parseFloat(sprite.style.transform.replace("rotate(", "").replace("deg)", "")) || 0;
+        function rotateSprite(angle) {
+            let sprite = document.getElementById("sprite");
+            let currentRotation = parseFloat(sprite.style.transform.replace("rotate(", "").replace("deg)", "")) || 0;
             sprite.style.transform = `rotate(${currentRotation + angle}deg)`;
         }
 
         function changeColor() {
-            var sprite = document.getElementById("sprite");
+            let sprite = document.getElementById("sprite");
             sprite.style.backgroundColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
         }
+
+        // Create default nodes
+        new Node("Move", 50, 50);
+        new Node("Rotate", 50, 150);
+        new Node("Color", 50, 250);
+
+        // Run button
+        let runButton = document.createElement("button");
+        runButton.innerText = "Run";
+        runButton.style.position = "absolute";
+        runButton.style.bottom = "10px";
+        runButton.style.left = "50px";
+        runButton.onclick = runProgram;
+        document.getElementById("editor").appendChild(runButton);
     </script>
 </body>
 </html>
