@@ -33,10 +33,17 @@
             background: red;
             border-radius: 50%;
             position: absolute;
+            cursor: pointer;
+        }
+        .connector.in {
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .connector.out {
             right: -5px;
             top: 50%;
             transform: translateY(-50%);
-            cursor: pointer;
         }
         #canvas-container {
             width: 400px;
@@ -59,6 +66,8 @@
     <script>
         const workspace = document.getElementById('workspace');
         let nodeId = 0;
+        let connections = [];
+        let selectedConnector = null;
 
         function createNode(type) {
             const node = document.createElement('div');
@@ -69,10 +78,18 @@
             node.dataset.type = type;
             node.dataset.id = nodeId++;
             
-            const connector = document.createElement('div');
-            connector.classList.add('connector');
-            node.appendChild(connector);
-
+            const connectorIn = document.createElement('div');
+            connectorIn.classList.add('connector', 'in');
+            connectorIn.dataset.nodeId = node.dataset.id;
+            connectorIn.onclick = connectNodes;
+            
+            const connectorOut = document.createElement('div');
+            connectorOut.classList.add('connector', 'out');
+            connectorOut.dataset.nodeId = node.dataset.id;
+            connectorOut.onclick = connectNodes;
+            
+            node.appendChild(connectorIn);
+            node.appendChild(connectorOut);
             workspace.appendChild(node);
 
             interact(node).draggable({
@@ -92,14 +109,29 @@
             });
         }
 
+        function connectNodes(event) {
+            const clickedConnector = event.target;
+            
+            if (selectedConnector === null) {
+                selectedConnector = clickedConnector;
+            } else {
+                if (selectedConnector !== clickedConnector && selectedConnector.classList.contains('out') && clickedConnector.classList.contains('in')) {
+                    connections.push({ from: selectedConnector.dataset.nodeId, to: clickedConnector.dataset.nodeId });
+                    console.log("Connected:", connections);
+                }
+                selectedConnector = null;
+            }
+        }
+
         function generateCode() {
             let code = "import turtle\nt = turtle.Turtle()\n";
-            document.querySelectorAll('.node').forEach(node => {
-                if (node.dataset.type === 'Move Forward') {
+            connections.forEach(connection => {
+                const fromNode = document.querySelector(`.node[data-id='${connection.from}']`);
+                if (fromNode.dataset.type === 'Move Forward') {
                     code += "t.forward(100)\n";
-                } else if (node.dataset.type === 'Turn Left') {
+                } else if (fromNode.dataset.type === 'Turn Left') {
                     code += "t.left(90)\n";
-                } else if (node.dataset.type === 'Draw Circle') {
+                } else if (fromNode.dataset.type === 'Draw Circle') {
                     code += "t.circle(50)\n";
                 }
             });
