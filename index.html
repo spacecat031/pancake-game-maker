@@ -45,6 +45,14 @@
             top: 50%;
             transform: translateY(-50%);
         }
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
         #canvas-container {
             width: 400px;
             height: 400px;
@@ -58,13 +66,16 @@
 </head>
 <body>
     <div id="buttons-container"></div>
-    <div id="workspace"></div>
+    <div id="workspace">
+        <svg id="connections"></svg>
+    </div>
     <canvas id="canvas" width="400" height="400"></canvas>
     <button onclick="generateCode()">Generate Code</button>
     <pre id="code-output"></pre>
 
     <script>
         const workspace = document.getElementById('workspace');
+        const svg = document.getElementById('connections');
         let nodeId = 0;
         let connections = [];
         let selectedConnector = null;
@@ -81,12 +92,12 @@
             const connectorIn = document.createElement('div');
             connectorIn.classList.add('connector', 'in');
             connectorIn.dataset.nodeId = node.dataset.id;
-            connectorIn.onclick = connectNodes;
+            connectorIn.onclick = () => selectConnector(connectorIn);
             
             const connectorOut = document.createElement('div');
             connectorOut.classList.add('connector', 'out');
             connectorOut.dataset.nodeId = node.dataset.id;
-            connectorOut.onclick = connectNodes;
+            connectorOut.onclick = () => selectConnector(connectorOut);
             
             node.appendChild(connectorIn);
             node.appendChild(connectorOut);
@@ -104,29 +115,60 @@
                         target.style.transform = `translate(${x}px, ${y}px)`;
                         target.dataset.x = x;
                         target.dataset.y = y;
+                        updateConnections();
                     }
                 }
             });
         }
 
-        function connectNodes(event) {
-            const clickedConnector = event.target;
-            
-            if (selectedConnector === null) {
-                selectedConnector = clickedConnector;
+        function selectConnector(connector) {
+            if (!selectedConnector) {
+                selectedConnector = connector;
             } else {
-                if (selectedConnector !== clickedConnector && selectedConnector.classList.contains('out') && clickedConnector.classList.contains('in')) {
-                    connections.push({ from: selectedConnector.dataset.nodeId, to: clickedConnector.dataset.nodeId });
-                    console.log("Connected:", connections);
+                if (selectedConnector !== connector && selectedConnector.classList.contains('out') && connector.classList.contains('in')) {
+                    connections.push({ from: selectedConnector.dataset.nodeId, to: connector.dataset.nodeId });
+                    drawConnections();
                 }
                 selectedConnector = null;
             }
         }
 
+        function drawConnections() {
+            svg.innerHTML = '';
+            connections.forEach(({ from, to }) => {
+                const fromNode = document.querySelector(`.node[data-id='${from}'] .out`);
+                const toNode = document.querySelector(`.node[data-id='${to}'] .in`);
+                if (fromNode && toNode) {
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("stroke", "black");
+                    line.setAttribute("stroke-width", "2");
+                    svg.appendChild(line);
+                    updateConnections();
+                }
+            });
+        }
+
+        function updateConnections() {
+            connections.forEach(({ from, to }, index) => {
+                const fromNode = document.querySelector(`.node[data-id='${from}'] .out`);
+                const toNode = document.querySelector(`.node[data-id='${to}'] .in`);
+                const line = svg.children[index];
+                if (fromNode && toNode && line) {
+                    const fromRect = fromNode.getBoundingClientRect();
+                    const toRect = toNode.getBoundingClientRect();
+                    const workspaceRect = workspace.getBoundingClientRect();
+                    line.setAttribute("x1", fromRect.left + fromRect.width / 2 - workspaceRect.left);
+                    line.setAttribute("y1", fromRect.top + fromRect.height / 2 - workspaceRect.top);
+                    line.setAttribute("x2", toRect.left + toRect.width / 2 - workspaceRect.left);
+                    line.setAttribute("y2", toRect.top + toRect.height / 2 - workspaceRect.top);
+                }
+            });
+        }
+
         function generateCode() {
             let code = "import turtle\nt = turtle.Turtle()\n";
-            connections.forEach(connection => {
-                const fromNode = document.querySelector(`.node[data-id='${connection.from}']`);
+            connections.forEach(({ from }) => {
+                const fromNode = document.querySelector(`.node[data-id='${from}']`);
                 if (fromNode.dataset.type === 'Move Forward') {
                     code += "t.forward(100)\n";
                 } else if (fromNode.dataset.type === 'Turn Left') {
