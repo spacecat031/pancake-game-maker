@@ -4,34 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scratch-Like Python Turtle Editor</title>
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
             display: flex;
             gap: 20px;
             padding: 20px;
         }
-        #blocks-container {
-            width: 200px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .block {
-            width: 180px;
-            padding: 10px;
-            background: #ffcc00;
-            border: 2px solid #ff9900;
-            border-radius: 10px;
-            cursor: grab;
-            text-align: center;
-        }
-        #workspace {
-            width: 400px;
+        #blocklyDiv {
             height: 600px;
-            border: 2px dashed #ccc;
-            background: #f9f9f9;
-            position: relative;
+            width: 600px;
+            border: 2px solid #ccc;
         }
         #code-output {
             width: 300px;
@@ -44,38 +27,56 @@
     </style>
 </head>
 <body>
-    <div id="blocks-container">
-        <div class="block" draggable="true" data-command="t.forward(100)">Move Forward</div>
-        <div class="block" draggable="true" data-command="t.left(90)">Turn Left</div>
-        <div class="block" draggable="true" data-command="t.circle(50)">Draw Circle</div>
-    </div>
-    
-    <div id="workspace" ondragover="event.preventDefault()" ondrop="dropBlock(event)"></div>
-    
+    <div id="blocklyDiv"></div>
     <button onclick="generateCode()">Generate Code</button>
     <pre id="code-output"></pre>
-    
-    <script>
-        function dropBlock(event) {
-            event.preventDefault();
-            let data = event.dataTransfer.getData("text");
-            let block = document.querySelector(`[data-command='${data}']`).cloneNode(true);
-            block.style.position = "absolute";
-            block.style.left = event.offsetX + "px";
-            block.style.top = event.offsetY + "px";
-            document.getElementById("workspace").appendChild(block);
-        }
 
-        document.querySelectorAll(".block").forEach(block => {
-            block.ondragstart = (event) => {
-                event.dataTransfer.setData("text", block.dataset.command);
-            };
+    <script>
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: `
+                <xml>
+                    <block type="move_forward"></block>
+                    <block type="turn_left"></block>
+                    <block type="draw_circle"></block>
+                </xml>
+            `
         });
+
+        Blockly.defineBlocksWithJsonArray([
+            {
+                "type": "move_forward",
+                "message0": "Move forward",
+                "previousStatement": null,
+                "nextStatement": null,
+                "colour": 230
+            },
+            {
+                "type": "turn_left",
+                "message0": "Turn left",
+                "previousStatement": null,
+                "nextStatement": null,
+                "colour": 180
+            },
+            {
+                "type": "draw_circle",
+                "message0": "Draw circle",
+                "previousStatement": null,
+                "nextStatement": null,
+                "colour": 120
+            }
+        ]);
 
         function generateCode() {
             let code = "import turtle\nt = turtle.Turtle()\n";
-            document.querySelectorAll("#workspace .block").forEach(block => {
-                code += block.dataset.command + "\n";
+            let blocks = workspace.getAllBlocks(false);
+            blocks.forEach(block => {
+                if (block.type === "move_forward") {
+                    code += "t.forward(100)\n";
+                } else if (block.type === "turn_left") {
+                    code += "t.left(90)\n";
+                } else if (block.type === "draw_circle") {
+                    code += "t.circle(50)\n";
+                }
             });
             document.getElementById("code-output").textContent = code;
         }
