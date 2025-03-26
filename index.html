@@ -11,87 +11,74 @@
             gap: 20px;
             padding: 20px;
         }
-        #workspace {
-            width: 600px;
-            height: 600px;
-            border: 2px dashed #ccc;
-            position: relative;
-            background: #f9f9f9;
+        #blocks-container {
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         .block {
-            width: 150px;
+            width: 180px;
             padding: 10px;
             background: #ffcc00;
             border: 2px solid #ff9900;
-            position: absolute;
+            border-radius: 10px;
             cursor: grab;
             text-align: center;
-            border-radius: 10px;
-            margin-bottom: 5px;
         }
-        #canvas-container {
+        #workspace {
             width: 400px;
-            height: 400px;
-            border: 1px solid black;
+            height: 600px;
+            border: 2px dashed #ccc;
+            background: #f9f9f9;
+            position: relative;
         }
-        button {
-            margin: 5px;
+        #code-output {
+            width: 300px;
+            height: 200px;
+            background: #eee;
             padding: 10px;
-            background: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
+            border: 1px solid #ccc;
+            overflow: auto;
         }
     </style>
 </head>
 <body>
-    <div id="buttons-container"></div>
-    <div id="workspace"></div>
-    <canvas id="canvas" width="400" height="400"></canvas>
+    <div id="blocks-container">
+        <div class="block" draggable="true" data-command="t.forward(100)">Move Forward</div>
+        <div class="block" draggable="true" data-command="t.left(90)">Turn Left</div>
+        <div class="block" draggable="true" data-command="t.circle(50)">Draw Circle</div>
+    </div>
+    
+    <div id="workspace" ondragover="event.preventDefault()" ondrop="dropBlock(event)"></div>
+    
     <button onclick="generateCode()">Generate Code</button>
     <pre id="code-output"></pre>
-
+    
     <script>
-        const workspace = document.getElementById('workspace');
-        let blockId = 0;
-
-        function createBlock(type) {
-            const block = document.createElement('div');
-            block.classList.add('block');
-            block.textContent = type;
-            block.style.left = '50px';
-            block.style.top = `${50 + (blockId * 60)}px`;
-            block.dataset.type = type;
-            block.dataset.id = blockId++;
-            workspace.appendChild(block);
-
-            block.draggable = true;
-            block.ondragstart = (event) => {
-                event.dataTransfer.setData('text/plain', block.dataset.id);
-            };
+        function dropBlock(event) {
+            event.preventDefault();
+            let data = event.dataTransfer.getData("text");
+            let block = document.querySelector(`[data-command='${data}']`).cloneNode(true);
+            block.style.position = "absolute";
+            block.style.left = event.offsetX + "px";
+            block.style.top = event.offsetY + "px";
+            document.getElementById("workspace").appendChild(block);
         }
+
+        document.querySelectorAll(".block").forEach(block => {
+            block.ondragstart = (event) => {
+                event.dataTransfer.setData("text", block.dataset.command);
+            };
+        });
 
         function generateCode() {
             let code = "import turtle\nt = turtle.Turtle()\n";
-            document.querySelectorAll('.block').forEach(block => {
-                if (block.dataset.type === 'Move Forward') {
-                    code += "t.forward(100)\n";
-                } else if (block.dataset.type === 'Turn Left') {
-                    code += "t.left(90)\n";
-                } else if (block.dataset.type === 'Draw Circle') {
-                    code += "t.circle(50)\n";
-                }
+            document.querySelectorAll("#workspace .block").forEach(block => {
+                code += block.dataset.command + "\n";
             });
-            document.getElementById('code-output').textContent = code;
+            document.getElementById("code-output").textContent = code;
         }
-
-        ['Move Forward', 'Turn Left', 'Draw Circle'].forEach(type => {
-            const btn = document.createElement('button');
-            btn.textContent = type;
-            btn.onclick = () => createBlock(type);
-            document.getElementById('buttons-container').appendChild(btn);
-        });
     </script>
 </body>
 </html>
