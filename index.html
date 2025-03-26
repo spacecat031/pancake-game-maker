@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Node-Based Python Turtle Simulator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.11/interact.min.js"></script>
+    <title>Scratch-Like Python Turtle Editor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,41 +16,18 @@
             height: 600px;
             border: 2px dashed #ccc;
             position: relative;
+            background: #f9f9f9;
         }
-        .node {
-            width: 120px;
+        .block {
+            width: 150px;
             padding: 10px;
-            background: #f0f0f0;
-            border: 1px solid #ccc;
+            background: #ffcc00;
+            border: 2px solid #ff9900;
             position: absolute;
             cursor: grab;
             text-align: center;
-        }
-        .connector {
-            width: 10px;
-            height: 10px;
-            background: red;
-            border-radius: 50%;
-            position: absolute;
-            cursor: pointer;
-        }
-        .connector.in {
-            left: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        .connector.out {
-            right: -5px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        svg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            border-radius: 10px;
+            margin-bottom: 5px;
         }
         #canvas-container {
             width: 400px;
@@ -59,121 +35,51 @@
             border: 1px solid black;
         }
         button {
-            width: auto;
-            padding: 5px 10px;
+            margin: 5px;
+            padding: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
     <div id="buttons-container"></div>
-    <div id="workspace">
-        <svg id="connections"></svg>
-    </div>
+    <div id="workspace"></div>
     <canvas id="canvas" width="400" height="400"></canvas>
     <button onclick="generateCode()">Generate Code</button>
     <pre id="code-output"></pre>
 
     <script>
         const workspace = document.getElementById('workspace');
-        const svg = document.getElementById('connections');
-        let nodeId = 0;
-        let connections = [];
-        let selectedConnector = null;
+        let blockId = 0;
 
-        function createNode(type) {
-            const node = document.createElement('div');
-            node.classList.add('node');
-            node.textContent = type;
-            node.style.left = '50px';
-            node.style.top = `${50 + (nodeId * 60)}px`;
-            node.dataset.type = type;
-            node.dataset.id = nodeId++;
-            
-            const connectorIn = document.createElement('div');
-            connectorIn.classList.add('connector', 'in');
-            connectorIn.dataset.nodeId = node.dataset.id;
-            connectorIn.onclick = () => selectConnector(connectorIn);
-            
-            const connectorOut = document.createElement('div');
-            connectorOut.classList.add('connector', 'out');
-            connectorOut.dataset.nodeId = node.dataset.id;
-            connectorOut.onclick = () => selectConnector(connectorOut);
-            
-            node.appendChild(connectorIn);
-            node.appendChild(connectorOut);
-            workspace.appendChild(node);
+        function createBlock(type) {
+            const block = document.createElement('div');
+            block.classList.add('block');
+            block.textContent = type;
+            block.style.left = '50px';
+            block.style.top = `${50 + (blockId * 60)}px`;
+            block.dataset.type = type;
+            block.dataset.id = blockId++;
+            workspace.appendChild(block);
 
-            interact(node).draggable({
-                modifiers: [
-                    interact.modifiers.restrictRect({ restriction: workspace })
-                ],
-                listeners: {
-                    move(event) {
-                        const target = event.target;
-                        const x = (parseFloat(target.dataset.x) || 0) + event.dx;
-                        const y = (parseFloat(target.dataset.y) || 0) + event.dy;
-                        target.style.transform = `translate(${x}px, ${y}px)`;
-                        target.dataset.x = x;
-                        target.dataset.y = y;
-                        updateConnections();
-                    }
-                }
-            });
-        }
-
-        function selectConnector(connector) {
-            if (!selectedConnector) {
-                selectedConnector = connector;
-            } else {
-                if (selectedConnector !== connector && selectedConnector.classList.contains('out') && connector.classList.contains('in')) {
-                    connections.push({ from: selectedConnector.dataset.nodeId, to: connector.dataset.nodeId });
-                    drawConnections();
-                }
-                selectedConnector = null;
-            }
-        }
-
-        function drawConnections() {
-            svg.innerHTML = '';
-            connections.forEach(({ from, to }) => {
-                const fromNode = document.querySelector(`.node[data-id='${from}'] .out`);
-                const toNode = document.querySelector(`.node[data-id='${to}'] .in`);
-                if (fromNode && toNode) {
-                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-                    line.setAttribute("stroke", "black");
-                    line.setAttribute("stroke-width", "2");
-                    svg.appendChild(line);
-                    updateConnections();
-                }
-            });
-        }
-
-        function updateConnections() {
-            connections.forEach(({ from, to }, index) => {
-                const fromNode = document.querySelector(`.node[data-id='${from}'] .out`);
-                const toNode = document.querySelector(`.node[data-id='${to}'] .in`);
-                const line = svg.children[index];
-                if (fromNode && toNode && line) {
-                    const fromRect = fromNode.getBoundingClientRect();
-                    const toRect = toNode.getBoundingClientRect();
-                    const workspaceRect = workspace.getBoundingClientRect();
-                    line.setAttribute("x1", fromRect.left + fromRect.width / 2 - workspaceRect.left);
-                    line.setAttribute("y1", fromRect.top + fromRect.height / 2 - workspaceRect.top);
-                    line.setAttribute("x2", toRect.left + toRect.width / 2 - workspaceRect.left);
-                    line.setAttribute("y2", toRect.top + toRect.height / 2 - workspaceRect.top);
-                }
-            });
+            block.draggable = true;
+            block.ondragstart = (event) => {
+                event.dataTransfer.setData('text/plain', block.dataset.id);
+            };
         }
 
         function generateCode() {
             let code = "import turtle\nt = turtle.Turtle()\n";
-            connections.forEach(({ from }) => {
-                const fromNode = document.querySelector(`.node[data-id='${from}']`);
-                if (fromNode.dataset.type === 'Move Forward') {
+            document.querySelectorAll('.block').forEach(block => {
+                if (block.dataset.type === 'Move Forward') {
                     code += "t.forward(100)\n";
-                } else if (fromNode.dataset.type === 'Turn Left') {
+                } else if (block.dataset.type === 'Turn Left') {
                     code += "t.left(90)\n";
-                } else if (fromNode.dataset.type === 'Draw Circle') {
+                } else if (block.dataset.type === 'Draw Circle') {
                     code += "t.circle(50)\n";
                 }
             });
@@ -183,7 +89,7 @@
         ['Move Forward', 'Turn Left', 'Draw Circle'].forEach(type => {
             const btn = document.createElement('button');
             btn.textContent = type;
-            btn.onclick = () => createNode(type);
+            btn.onclick = () => createBlock(type);
             document.getElementById('buttons-container').appendChild(btn);
         });
     </script>
