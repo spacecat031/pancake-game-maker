@@ -27,14 +27,30 @@
             cursor: grab;
             text-align: center;
         }
+        .connector {
+            width: 10px;
+            height: 10px;
+            background: red;
+            border-radius: 50%;
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
         #canvas-container {
             width: 400px;
             height: 400px;
             border: 1px solid black;
         }
+        button {
+            width: auto;
+            padding: 5px 10px;
+        }
     </style>
 </head>
 <body>
+    <div id="buttons-container"></div>
     <div id="workspace"></div>
     <canvas id="canvas" width="400" height="400"></canvas>
     <button onclick="generateCode()">Generate Code</button>
@@ -43,7 +59,6 @@
     <script>
         const workspace = document.getElementById('workspace');
         let nodeId = 0;
-        let connections = [];
 
         function createNode(type) {
             const node = document.createElement('div');
@@ -53,6 +68,11 @@
             node.style.top = `${50 + (nodeId * 60)}px`;
             node.dataset.type = type;
             node.dataset.id = nodeId++;
+            
+            const connector = document.createElement('div');
+            connector.classList.add('connector');
+            node.appendChild(connector);
+
             workspace.appendChild(node);
 
             interact(node).draggable({
@@ -90,7 +110,7 @@
             const btn = document.createElement('button');
             btn.textContent = type;
             btn.onclick = () => createNode(type);
-            document.body.insertBefore(btn, workspace);
+            document.getElementById('buttons-container').appendChild(btn);
         });
     </script>
 </body>
