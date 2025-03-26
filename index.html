@@ -3,207 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Node-Based Scratch Clone</title>
+    <title>Node-Based Python Turtle Simulator</title>
     <style>
         body {
-            display: flex;
-            height: 100vh;
-            margin: 0;
             font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
         }
-        #sidebar {
-            width: 20%;
-            background: #333;
-            color: white;
-            padding: 10px;
+        #canvas-container {
+            border: 1px solid #000;
+            width: 600px;
+            height: 600px;
+            position: relative;
+        }
+        #nodes-container {
+            width: 200px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        .node-button {
-            background: #444;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-            cursor: grab;
-        }
-        #editor {
-            width: 60%;
-            height: 100vh;
-            border-right: 2px solid black;
-            position: relative;
-            background: #f4f4f4;
-            overflow: hidden;
-        }
         .node {
-            position: absolute;
-            width: 120px;
-            background: white;
-            border: 1px solid #aaa;
             padding: 10px;
-            cursor: grab;
-            border-radius: 5px;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        .connector {
-            width: 12px;
-            height: 12px;
-            background: blue;
-            border-radius: 50%;
-            position: absolute;
-            right: -6px;
-            top: 50%;
-            transform: translateY(-50%);
+            background: #f0f0f0;
+            border: 1px solid #ccc;
             cursor: pointer;
-            border: 2px solid white;
         }
-        #stage {
-            width: 20%;
-            height: 100vh;
-            background-color: lightgray;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+        .node:hover {
+            background: #e0e0e0;
         }
-        #sprite {
-            width: 50px;
-            height: 50px;
-            background-color: red;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-        }
-        svg {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: visible;
-        }
-        path {
-            stroke: black;
-            stroke-width: 2px;
-            fill: none;
+        #code-output {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
         }
     </style>
 </head>
 <body>
-    <div id="sidebar">
-        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Move')">Move Node</div>
-        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Rotate')">Rotate Node</div>
-        <div class="node-button" draggable="true" ondragstart="startDrag(event, 'Color')">Color Node</div>
+
+    <div id="nodes-container">
+        <div class="node" id="move-forward">Move Forward</div>
+        <div class="node" id="turn-left">Turn Left</div>
+        <div class="node" id="draw-circle">Draw Circle</div>
+        <div class="node" id="clear-canvas">Clear Canvas</div>
     </div>
-    <div id="editor" ondragover="event.preventDefault()" ondrop="dropNode(event)">
-        <svg id="connections"></svg>
+
+    <div id="canvas-container">
+        <canvas id="canvas" width="600" height="600"></canvas>
     </div>
-    <div id="stage">
-        <div id="sprite"></div>
-    </div>
+
+    <div id="code-output"></div>
 
     <script>
-        let nodeId = 0;
-        let draggingNode = null;
-        let connectingNode = null;
-        let offsetX = 0, offsetY = 0;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const codeOutput = document.getElementById('code-output');
 
-        function startDrag(event, type) {
-            event.dataTransfer.setData("nodeType", type);
+        let currentX = 300;
+        let currentY = 300;
+        let currentAngle = 0;  // In degrees
+        let drawingCode = [];
+
+        // Node click handlers
+        document.getElementById('move-forward').addEventListener('click', () => {
+            drawingCode.push('t.forward(100)');
+            moveForward();
+        });
+
+        document.getElementById('turn-left').addEventListener('click', () => {
+            drawingCode.push('t.left(90)');
+            turnLeft();
+        });
+
+        document.getElementById('draw-circle').addEventListener('click', () => {
+            drawingCode.push('t.circle(50)');
+            drawCircle();
+        });
+
+        document.getElementById('clear-canvas').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawingCode = [];
+            codeOutput.textContent = '';
+        });
+
+        function moveForward() {
+            const prevX = currentX;
+            const prevY = currentY;
+            currentX += Math.cos(currentAngle * Math.PI / 180) * 100;
+            currentY += Math.sin(currentAngle * Math.PI / 180) * 100;
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+            updateCodeOutput();
         }
 
-        function dropNode(event) {
-            event.preventDefault();
-            const type = event.dataTransfer.getData("nodeType");
-            if (!type) return;
-
-            const editor = document.getElementById("editor");
-            const editorRect = editor.getBoundingClientRect();
-
-            const node = document.createElement("div");
-            node.className = "node";
-            node.innerText = type + " Node";
-            node.style.left = (event.clientX - editorRect.left) + "px";
-            node.style.top = (event.clientY - editorRect.top) + "px";
-            node.setAttribute("data-id", nodeId++);
-
-            const connector = document.createElement("div");
-            connector.className = "connector";
-            connector.onclick = () => startConnection(node);
-
-            node.appendChild(connector);
-            node.onmousedown = (e) => dragNode(e, node);
-            editor.appendChild(node);
+        function turnLeft() {
+            currentAngle -= 90;
+            if (currentAngle < 0) currentAngle += 360;
+            updateCodeOutput();
         }
 
-        function dragNode(event, node) {
-            event.preventDefault();
-            draggingNode = node;
-
-            const editor = document.getElementById("editor");
-            const editorRect = editor.getBoundingClientRect();
-            offsetX = event.clientX - node.offsetLeft - editorRect.left;
-            offsetY = event.clientY - node.offsetTop - editorRect.top;
-
-            document.onmousemove = moveNode;
-            document.onmouseup = () => {
-                draggingNode = null;
-                document.onmousemove = null;
-            };
+        function drawCircle() {
+            ctx.beginPath();
+            ctx.arc(currentX, currentY, 50, 0, 2 * Math.PI);
+            ctx.stroke();
+            updateCodeOutput();
         }
 
-        function moveNode(event) {
-            if (!draggingNode) return;
-            
-            const editor = document.getElementById("editor");
-            const editorRect = editor.getBoundingClientRect();
-            
-            let newX = event.clientX - editorRect.left - offsetX;
-            let newY = event.clientY - editorRect.top - offsetY;
-
-            newX = Math.max(0, Math.min(editor.clientWidth - draggingNode.offsetWidth, newX));
-            newY = Math.max(0, Math.min(editor.clientHeight - draggingNode.offsetHeight, newY));
-
-            draggingNode.style.left = newX + "px";
-            draggingNode.style.top = newY + "px";
-
-            updateAllConnections();
-        }
-
-        function startConnection(node) {
-            if (!connectingNode) {
-                connectingNode = node;
-            } else {
-                createConnection(connectingNode, node);
-                connectingNode = null;
-            }
-        }
-
-        function createConnection(node1, node2) {
-            const svg = document.getElementById("connections");
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("data-nodes", `${node1.dataset.id}-${node2.dataset.id}`);
-            updatePath(path, node1, node2);
-            svg.appendChild(path);
-        }
-
-        function updatePath(path, node1, node2) {
-            const x1 = node1.offsetLeft + node1.offsetWidth;
-            const y1 = node1.offsetTop + node1.offsetHeight / 2;
-            const x2 = node2.offsetLeft;
-            const y2 = node2.offsetTop + node2.offsetHeight / 2;
-            path.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
-        }
-
-        function updateAllConnections() {
-            document.querySelectorAll("path").forEach(path => {
-                const [id1, id2] = path.getAttribute("data-nodes").split("-");
-                const node1 = document.querySelector(`.node[data-id="${id1}"]`);
-                const node2 = document.querySelector(`.node[data-id="${id2}"]`);
-                if (node1 && node2) {
-                    updatePath(path, node1, node2);
-                }
-            });
+        function updateCodeOutput() {
+            codeOutput.textContent = 'Generated Python Code:\n' + drawingCode.join('\n');
         }
     </script>
+
 </body>
 </html>
